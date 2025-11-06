@@ -1,88 +1,25 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import texts from "./texts.json";
 import "./TypingQuiz.css";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
 
 const TypingQuiz = () => {
   const [userInput, setUserInput] = useState({});
   const [cursorIndex, setCursorIndex] = useState({});
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [showHint, setShowHint] = useState(false);
-  const [startTime, setStartTime] = useState(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [showTimer, setShowTimer] = useState(false);
-  const [showSpeed, setShowSpeed] = useState(false);
-  const [speedHistory, setSpeedHistory] = useState([]);
-  const [graphVisible, setGraphVisible] = useState(false);
-  const [countdownMinutes, setCountdownMinutes] = useState("");
-  const [countdown, setCountdown] = useState(null);
-  const [countdownActive, setCountdownActive] = useState(false);
 
   const containerRef = useRef(null);
 
-  useEffect(() => {
+  // Focus on typing area on mount
+  React.useEffect(() => {
     containerRef.current?.focus();
   }, []);
-
-  // Format seconds as MM:SS
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
-
-  // Timer & countdown effect
-  useEffect(() => {
-    if (!startTime && !countdownActive) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (countdownActive && countdown !== null) {
-        const remaining = Math.max(countdown - now, 0);
-        setElapsedTime(Math.ceil(remaining / 1000));
-        if (remaining === 0) {
-          setCountdownActive(false);
-        }
-      } else {
-        const newElapsed = Math.floor((now - startTime) / 1000);
-        setElapsedTime(newElapsed);
-
-        if (showSpeed) {
-          const inputMap = userInput[currentTextIndex] || {};
-          const charsTyped = Object.keys(inputMap).length;
-          const minutes = newElapsed / 60 || 1 / 60;
-          const wpm = Math.round(charsTyped / 5 / minutes);
-          setSpeedHistory((prev) => [...prev, { second: newElapsed, wpm }]);
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [
-    startTime,
-    showSpeed,
-    userInput,
-    currentTextIndex,
-    countdownActive,
-    countdown,
-  ]);
 
   const handleTextChange = (index) => {
     setCurrentTextIndex(index);
     if (!userInput[index]) setUserInput((prev) => ({ ...prev, [index]: {} }));
     if (!cursorIndex[index])
       setCursorIndex((prev) => ({ ...prev, [index]: 0 }));
-    setStartTime(null);
-    setElapsedTime(0);
-    setSpeedHistory([]);
-    setCountdownActive(false);
   };
 
   const parseText = (text) => {
@@ -100,13 +37,16 @@ const TypingQuiz = () => {
   };
 
   const handleKeyDown = (e) => {
-    e.preventDefault();
+    const textAreaFocused = containerRef.current.contains(
+      document.activeElement
+    );
     const key = e.key;
+
+    if (textAreaFocused) e.preventDefault();
+
     const inputMap = { ...userInput[currentTextIndex] };
     const textChars = parseText(texts[currentTextIndex].content);
     const cursor = cursorIndex[currentTextIndex] ?? 0;
-
-    if (!startTime && !countdownActive) setStartTime(Date.now());
 
     if (key.length === 1) {
       inputMap[cursor] = key;
@@ -132,7 +72,7 @@ const TypingQuiz = () => {
     }
   };
 
-  const handleClick = (e) => {
+  const handleClick = () => {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
     const range = selection.getRangeAt(0);
@@ -152,21 +92,13 @@ const TypingQuiz = () => {
 
     return chars.map((c, i) => {
       const typedChar = inputMap[i];
-      let display;
+      let display = c.char;
       let color = "grey";
 
-      if (c.hidden && !showHint && !typedChar) {
-        display = "_";
-      } else {
-        display = c.char;
-      }
+      if (c.hidden && !showHint && !typedChar) display = "_";
 
       if (typedChar) {
-        if (typedChar === c.char) {
-          color = c.hidden ? "green" : "blue";
-        } else {
-          color = "red";
-        }
+        color = typedChar === c.char ? (c.hidden ? "green" : "blue") : "red";
       }
 
       const isCursor = i === cursor;
@@ -185,32 +117,6 @@ const TypingQuiz = () => {
         </span>
       );
     });
-  };
-
-  const calculateSpeed = () => {
-    const inputMap = userInput[currentTextIndex] || {};
-    const charsTyped = Object.keys(inputMap).length;
-    const minutes = elapsedTime / 60 || 1 / 60;
-    const wpm = charsTyped / 5 / minutes;
-    return Math.round(wpm);
-  };
-
-  const handleResetTime = () => {
-    setStartTime(Date.now());
-    setElapsedTime(0);
-    setSpeedHistory([]);
-    setCountdownActive(false);
-  };
-
-  const handleStartCountdown = () => {
-    const minutes = parseInt(countdownMinutes);
-    if (isNaN(minutes) || minutes <= 0) return;
-    const countdownMs = minutes * 60 * 1000;
-    setCountdown(Date.now() + countdownMs);
-    setCountdownActive(true);
-    setStartTime(null);
-    setElapsedTime(minutes * 60);
-    setSpeedHistory([]);
   };
 
   return (
@@ -270,52 +176,6 @@ const TypingQuiz = () => {
         >
           {showHint ? "Hinweis ausblenden" : "Hinweis anzeigen"}
         </button>
-
-        {/* Timer */}
-        {showTimer && <div>Zeit: {formatTime(elapsedTime)}</div>}
-
-        {/* WPM */}
-        {showSpeed && <div>Geschwindigkeit: {calculateSpeed()} WPM</div>}
-
-        {/* Toggles */}
-        <div style={{ display: "flex", gap: "10px" }}>
-          <label>
-            <input
-              type="checkbox"
-              checked={showTimer}
-              onChange={() => setShowTimer((p) => !p)}
-            />{" "}
-            Zeit
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={showSpeed}
-              onChange={() => setShowSpeed((p) => !p)}
-            />{" "}
-            Geschwindigkeit
-          </label>
-        </div>
-
-        {/* Reset / Countdown */}
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <button onClick={handleResetTime} style={{ padding: "6px 12px" }}>
-            Zeit zurücksetzen
-          </button>
-          <input
-            type="number"
-            placeholder="Minuten"
-            value={countdownMinutes}
-            onChange={(e) => setCountdownMinutes(e.target.value)}
-            style={{ width: "60px", padding: "4px" }}
-          />
-          <button
-            onClick={handleStartCountdown}
-            style={{ padding: "6px 12px" }}
-          >
-            Countdown starten
-          </button>
-        </div>
       </div>
 
       {/* Typing Area */}
@@ -331,56 +191,6 @@ const TypingQuiz = () => {
       >
         {getStyledText()}
       </div>
-
-      {/* Graph toggle */}
-      {showSpeed && (
-        <div style={{ marginTop: "10px", padding: "0 20px" }}>
-          <button
-            onClick={() => setGraphVisible((p) => !p)}
-            style={{ padding: "6px 12px" }}
-          >
-            {graphVisible ? "Graph ausblenden" : "Graph anzeigen"}
-          </button>
-        </div>
-      )}
-
-      {/* Real-time speed graph */}
-      {showSpeed && graphVisible && speedHistory.length > 0 && (
-        <div
-          style={{
-            marginTop: "10px",
-            padding: "0 20px",
-            maxHeight: "250px",
-            overflowY: "auto",
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-            backgroundColor: "#f9f9f9",
-          }}
-        >
-          <h4>Geschwindigkeit über Zeit (WPM)</h4>
-          <LineChart
-            width={700}
-            height={200}
-            data={speedHistory}
-            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-          >
-            <CartesianGrid stroke="#ccc" />
-            <XAxis
-              dataKey="second"
-              label={{
-                value: "Sekunden",
-                position: "insideBottomRight",
-                offset: -5,
-              }}
-            />
-            <YAxis
-              label={{ value: "WPM", angle: -90, position: "insideLeft" }}
-            />
-            <Tooltip />
-            <Line type="monotone" dataKey="wpm" stroke="#8884d8" dot={false} />
-          </LineChart>
-        </div>
-      )}
     </div>
   );
 };
