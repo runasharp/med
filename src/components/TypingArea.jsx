@@ -38,11 +38,39 @@ const TypingArea = ({
         let display = c.char;
         let color = "grey";
 
+        // Handle hidden characters
         if (c.hidden && !showHint && !typedChar) display = "_";
-        if (typedChar)
+        if (typedChar) {
           color = typedChar === c.char ? (c.hidden ? "green" : "blue") : "red";
+          // Log comparison for debugging
+          if (c.char === "\n" || typedChar === "\n") {
+            console.log(`Position ${i}:`, {
+              expectedChar: JSON.stringify(c.char),
+              typedChar: JSON.stringify(typedChar),
+              match: typedChar === c.char,
+              color,
+            });
+          }
+        }
 
         const isCursor = i === cursor;
+
+        // Render newline characters
+        if (c.char === "\n") {
+          return (
+            <span
+              key={i}
+              data-index={i}
+              style={{
+                color,
+                backgroundColor: isCursor ? "lightgrey" : "transparent",
+                display: "inline",
+              }}
+            >
+              {typedChar === "\n" ? "\n" : display}
+            </span>
+          );
+        }
 
         return (
           <span
@@ -58,6 +86,17 @@ const TypingArea = ({
           </span>
         );
       })}
+      {/* Cursor at the end */}
+      {cursor === chars.length && (
+        <span
+          style={{
+            backgroundColor: "lightgrey",
+            display: "inline-block",
+            width: "2px",
+            height: "1em",
+          }}
+        />
+      )}
     </div>
   );
 };

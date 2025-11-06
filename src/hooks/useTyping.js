@@ -6,7 +6,6 @@ export const useTyping = () => {
   const [cursorIndex, setCursorIndex] = useState({});
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [showHint, setShowHint] = useState(false);
-
   const containerRef = useRef(null);
 
   // Focus on mount
@@ -45,7 +44,26 @@ export const useTyping = () => {
     const textChars = parseText(texts[currentTextIndex].content);
     const cursor = cursorIndex[currentTextIndex] ?? 0;
 
-    if (key.length === 1) {
+    console.log(
+      "Key pressed:",
+      key,
+      "Key code:",
+      e.keyCode,
+      "Key charCode:",
+      e.charCode
+    );
+    console.log("Current cursor position:", cursor);
+    console.log("Expected char at cursor:", textChars[cursor]);
+
+    if (key === "Enter") {
+      // Insert a newline character that matches the JSON format
+      console.log("Enter pressed - storing newline");
+      inputMap[cursor] = "\n";
+      console.log("Stored character:", JSON.stringify(inputMap[cursor]));
+      setUserInput((prev) => ({ ...prev, [currentTextIndex]: inputMap }));
+      setCursorIndex((prev) => ({ ...prev, [currentTextIndex]: cursor + 1 }));
+    } else if (key.length === 1) {
+      // Normal character
       inputMap[cursor] = key;
       setUserInput((prev) => ({ ...prev, [currentTextIndex]: inputMap }));
       setCursorIndex((prev) => ({ ...prev, [currentTextIndex]: cursor + 1 }));
@@ -72,8 +90,10 @@ export const useTyping = () => {
   const handleClick = () => {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
+
     const range = selection.getRangeAt(0);
     const span = range.startContainer.parentNode;
+
     if (!span.dataset || !span.dataset.index) return;
 
     const idx = Number(span.dataset.index);
@@ -92,5 +112,6 @@ export const useTyping = () => {
     handleClick,
     parseText,
     setShowHint,
+    focusContainer,
   };
 };
